@@ -1,77 +1,84 @@
 import React from 'react'
 
-const TABS = [
-  { id: 'overview', label: 'Overview', color: 'var(--lemon)' },
-  { id: 'data', label: 'Full dataset', color: 'var(--sky)' },
-  { id: 'cleaning', label: 'Data quality', color: 'var(--mint)' },
-  { id: 'stats', label: 'Statistics', color: 'var(--tangerine)' },
-  { id: 'charts', label: 'Charts', color: 'var(--pink)' },
-  { id: 'correlation', label: 'Correlations', color: 'var(--accent-soft)' },
-  { id: 'ml', label: 'ML models', color: 'var(--lemon)' },
-  { id: 'recommendations', label: 'Recommendations', color: 'var(--mint)' },
-  { id: 'report', label: 'PDF report', color: 'var(--sky)' },
+const GROUPS = [
+  { label: null, tabs: [{ id: 'overview', label: 'Overview' }] },
+  {
+    label: 'Analysis',
+    tabs: [
+      { id: 'data', label: 'Full dataset' },
+      { id: 'cleaning', label: 'Data quality' },
+      { id: 'stats', label: 'Statistics' },
+      { id: 'charts', label: 'Charts' },
+      { id: 'correlation', label: 'Correlations' },
+      { id: 'ml', label: 'ML models' },
+      { id: 'recommendations', label: 'Recommendations' },
+      { id: 'report', label: 'PDF report' },
+    ],
+  },
 ]
 
 export default function Sidebar({ active, onSelect, filename, rowCount, colCount, onNewDataset }) {
   return (
     <div
       style={{
-        width: 244, flexShrink: 0, background: 'var(--ink)', color: '#fff',
-        borderRight: '2px solid var(--line)', display: 'flex', flexDirection: 'column',
+        width: 224, flexShrink: 0, background: 'var(--paper-raised)', color: 'var(--ink)',
+        borderRight: '1px solid var(--hairline)', display: 'flex', flexDirection: 'column',
         height: '100vh', position: 'sticky', top: 0,
-        backgroundImage: 'radial-gradient(rgba(255,255,255,0.07) 1.2px, transparent 1.3px)', backgroundSize: '16px 16px',
       }}
     >
-      <div style={{ padding: '22px 18px 18px', borderBottom: '2px dashed rgba(255,255,255,0.25)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--pink)', border: '2px solid #fff', display: 'grid', placeItems: 'center', transform: 'rotate(-6deg)', boxShadow: '3px 3px 0 var(--lemon)' }}>
-            <svg width="24" height="14" viewBox="0 0 70 34" fill="none">
-              <polyline points="0,26 10,26 15,8 22,32 29,14 34,26 70,26" stroke="var(--ink)" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 19, lineHeight: 1.05, letterSpacing: '-0.02em' }}>
-            Data<br />Analyst
-          </div>
+      <div style={{ padding: '20px 18px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <svg width="22" height="12" viewBox="0 0 22 12" fill="none">
+            <polyline points="0,9 4,9 6,3 9,11 12,5 14,9 22,9" stroke="var(--accent)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <div style={{ fontWeight: 600, fontSize: 14.5, letterSpacing: '-0.01em' }}>Data Analyst</div>
         </div>
-        <div title={filename} style={{ marginTop: 16, padding: '6px 10px', background: 'var(--lemon)', color: 'var(--ink)', borderRadius: 8, border: '2px solid #fff', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div title={filename} style={{ marginTop: 12, fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--ink-soft)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {filename}
         </div>
-        <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.75)', marginTop: 6, fontFamily: 'var(--font-mono)' }}>
-          {rowCount?.toLocaleString()} rows · {colCount} columns
+        <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>
+          {rowCount?.toLocaleString()} rows · {colCount} cols
         </div>
       </div>
 
-      <nav style={{ flex: 1, padding: '14px 12px', overflowY: 'auto' }}>
-        {TABS.map((tab) => {
-          const isActive = active === tab.id
-          return (
-            <button
-              key={tab.id}
-              onClick={() => onSelect(tab.id)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
-                padding: '9px 12px', marginBottom: 6, borderRadius: 10, cursor: 'pointer',
-                border: isActive ? '2px solid #fff' : '2px solid transparent',
-                background: isActive ? 'var(--accent)' : 'transparent',
-                boxShadow: isActive ? '3px 3px 0 var(--pink)' : 'none',
-                color: '#fff', fontWeight: isActive ? 700 : 500, fontSize: 14.5,
-                transform: isActive ? 'translateX(3px)' : 'none',
-              }}
-              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
-              onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
-            >
-              <span style={{ width: 12, height: 12, borderRadius: 4, background: tab.color, border: '2px solid #fff', flexShrink: 0, transform: 'rotate(12deg)' }} />
-              {tab.label}
-            </button>
-          )
-        })}
+      <nav style={{ flex: 1, padding: '4px 10px', overflowY: 'auto' }}>
+        {GROUPS.map((g, gi) => (
+          <div key={gi} style={{ marginBottom: 14 }}>
+            {g.label && (
+              <div style={{ padding: '6px 10px', fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-faint)' }}>
+                {g.label}
+              </div>
+            )}
+            {g.tabs.map((tab) => {
+              const isActive = active === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => onSelect(tab.id)}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    padding: '7px 10px', marginBottom: 1, borderRadius: 8, cursor: 'pointer',
+                    border: 'none',
+                    background: isActive ? 'var(--accent-soft)' : 'transparent',
+                    color: isActive ? 'var(--accent-ink)' : 'var(--ink-soft)',
+                    fontWeight: isActive ? 600 : 500, fontSize: 13,
+                  }}
+                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--paper)' }}
+                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+                >
+                  {tab.label}
+                </button>
+              )
+            })}
+          </div>
+        ))}
       </nav>
 
-      <div style={{ padding: 14, borderTop: '2px dashed rgba(255,255,255,0.25)' }}>
+      <div style={{ padding: 12, borderTop: '1px solid var(--hairline)' }}>
         <button
           onClick={onNewDataset}
           className="btn"
-          style={{ '--btn-bg': 'var(--paper-raised)', '--btn-fg': 'var(--ink)', width: '100%', padding: '9px 12px', borderRadius: 10, fontSize: 13.5, fontWeight: 700, cursor: 'pointer', boxShadow: '3px 3px 0 var(--pink)' }}
+          style={{ '--btn-bg': 'var(--paper-raised)', '--btn-fg': 'var(--ink-soft)', '--btn-border': 'var(--hairline-strong)', width: '100%', padding: '8px 12px', borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: 'pointer' }}
         >
           ← Upload new dataset
         </button>
