@@ -1,44 +1,42 @@
 :root {
-  /* --- Core palette: riso-print indigo ink on lilac paper, with loud spot colours --- */
-  --paper: #F1EDFF;
+  /* --- Simple light theme: white surfaces, hairline borders, one indigo accent --- */
+  --paper: #F7F7F9;
   --paper-raised: #FFFFFF;
-  --ink: #1B1340;
-  --ink-soft: #473F73;
-  --ink-faint: #70689A;
-  --hairline: #DAD3F5;          /* quiet inner dividers */
-  --hairline-strong: #B9AEE8;
-  --line: #1B1340;              /* the heavy outline used on cards, buttons, stickers */
+  --ink: #1A1A24;
+  --ink-soft: #555568;
+  --ink-faint: #8B8B9E;
+  --hairline: #ECECF1;
+  --hairline-strong: #DCDCE6;
+  --line: #E4E4EC;              /* every former "heavy outline" is now a quiet border */
 
-  --accent: #6B3CFF;
-  --accent-soft: #E6DDFF;
-  --accent-ink: #4A1FD6;
+  --accent: #4F46E5;
+  --accent-soft: #EEEDFC;
+  --accent-ink: #4338CA;
 
-  --positive: #0A9E6F;
-  --positive-soft: #CFF7E6;
-  --alert: #E8264F;
-  --alert-soft: #FFDCE4;
-  --amber: #A85F00;
-  --amber-soft: #FFE8B0;
+  --positive: #0A8F66;
+  --positive-soft: #E3F6EE;
+  --alert: #D93B4F;
+  --alert-soft: #FDEBEE;
+  --amber: #9A5B00;
+  --amber-soft: #FFF1D6;
 
-  /* spot colours */
-  --pink: #FF3E9A;   --pink-soft: #FFD6EA;
-  --lemon: #FFE14D;  --lemon-soft: #FFF5B8;
-  --mint: #2EE6A6;   --mint-soft: #C9F9E6;
-  --sky: #35B8FF;    --sky-soft: #D3EFFF;
-  --tangerine: #FF8A3D; --tangerine-soft: #FFE1CC;
+  /* muted spot colours (used for tags, chips and chart series) */
+  --pink: #E0699B;   --pink-soft: #FCE9F1;
+  --lemon: #F3E3A0;  --lemon-soft: #FBF7E8;
+  --mint: #7DD3B0;   --mint-soft: #E8F7F0;
+  --sky: #7CBDF0;    --sky-soft: #EAF3FC;
+  --tangerine: #F3A66B; --tangerine-soft: #FDF0E5;
 
-  /* --- Type: chunky grotesque for display, humanist sans for text, mono for numbers --- */
-  --font-display: 'Bricolage Grotesque', 'Arial Black', sans-serif;
-  --font-body: 'Figtree', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
 
-  /* --- Layout: hard offset shadows, generous but varied radii --- */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
-  --shadow-sm: 2px 2px 0 var(--line);
-  --shadow-md: 4px 4px 0 var(--line);
-  --shadow-lg: 8px 8px 0 var(--line);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --shadow-sm: none;
+  --shadow-md: 0 1px 2px rgba(20, 20, 40, 0.04);
+  --shadow-lg: 0 12px 32px rgba(20, 20, 40, 0.12);
 }
 
 * { box-sizing: border-box; }
@@ -46,9 +44,7 @@
 html, body {
   margin: 0;
   padding: 0;
-  background-color: var(--paper);
-  background-image: radial-gradient(var(--hairline-strong) 1.1px, transparent 1.2px);
-  background-size: 22px 22px;
+  background: var(--paper);
   color: var(--ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
@@ -56,51 +52,47 @@ html, body {
 
 #root { min-height: 100vh; }
 
-::selection { background: var(--lemon); color: var(--ink); }
+::selection { background: var(--accent-soft); color: var(--ink); }
 
 button { font-family: inherit; }
 
 *:focus-visible {
-  outline: 3px solid var(--pink);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* ---------- Buttons: thick outline, hard shadow, pressed state ---------- */
+/* ---------- Buttons ---------- */
 .btn {
   background: var(--btn-bg, var(--ink));
-  color: var(--btn-fg, var(--paper-raised));
-  border: 2px solid var(--line);
-  box-shadow: 3px 3px 0 var(--line);
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  color: var(--btn-fg, #fff);
+  border: 1px solid var(--btn-border, transparent);
+  box-shadow: none;
+  transition: background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
 }
-.btn:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--line); }
-.btn:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--line); }
-.btn:disabled { box-shadow: 2px 2px 0 var(--hairline-strong); border-color: var(--hairline-strong); }
+.btn:hover:not(:disabled) { filter: brightness(0.96); border-color: var(--btn-border-hover, var(--btn-border, transparent)); }
+.btn:active:not(:disabled) { filter: brightness(0.92); }
+.btn:disabled { opacity: 0.5; }
 
-/* ---------- Selectable chips (columns, chart types, models) ---------- */
+/* ---------- Selectable chips ---------- */
 .chip {
-  border: 2px solid var(--line);
+  border: 1px solid var(--hairline-strong);
   background: var(--paper-raised);
-  color: var(--ink);
+  color: var(--ink-soft);
   border-radius: 999px;
-  padding: 5px 12px;
+  padding: 4px 12px;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition: transform 0.08s ease, background 0.08s ease;
+  transition: background 0.1s ease, border-color 0.1s ease;
 }
-.chip:hover { transform: translateY(-1px); background: var(--lemon-soft); }
-.chip[aria-pressed='true'] { background: var(--chip-on, var(--accent)); color: var(--chip-on-fg, #fff); box-shadow: 2px 2px 0 var(--line); }
+.chip:hover { background: var(--paper); }
+.chip[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--accent); }
 
-/* ---------- Ticker strip (the one animated moment on the page) ---------- */
-.ticker { overflow: hidden; white-space: nowrap; border: 2px solid var(--line); border-radius: var(--radius-md);
-  background: var(--lemon); box-shadow: var(--shadow-md); }
-.ticker-track { display: inline-flex; gap: 0; animation: ticker 38s linear infinite; }
-.ticker-track span { padding: 7px 18px; font-family: var(--font-display); font-weight: 800; font-size: 13px; color: var(--ink); }
-@keyframes ticker { to { transform: translateX(-50%); } }
+/* ---------- Ticker is not part of this theme ---------- */
+.ticker { display: none; }
 
 /* ---------- Table rows ---------- */
-.zebra tbody tr:nth-child(even) { background: color-mix(in srgb, var(--accent-soft) 35%, transparent); }
+.zebra tbody tr:nth-child(even) { background: var(--paper); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -111,7 +103,7 @@ button { font-family: inherit; }
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 12px; height: 12px; }
-::-webkit-scrollbar-track { background: var(--paper); }
-::-webkit-scrollbar-thumb { background: var(--hairline-strong); border: 2px solid var(--paper); border-radius: 8px; }
-::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--hairline-strong); border-radius: 8px; border: 2px solid var(--paper); }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); }
