@@ -1,54 +1,45 @@
 import React, { useState } from 'react'
-import { Card, SectionLabel, Button, Spinner } from '../Primitives'
+import { Badge, Button, Card, SectionLabel, Spinner } from '../Primitives'
 
-export default function ReportTab({ columns, onGenerate, downloadUrl, generating }) {
-  const [target, setTarget] = useState('')
+const SECTIONS = ['Executive summary', 'Dataset overview', 'Data quality', 'Charts', 'Statistics', 'Correlations', 'Model performance', 'Recommendations']
+
+export default function ReportTab({ mlConfig, mlResult, onGenerate, downloadUrl, generating }) {
   const [includeML, setIncludeML] = useState(true)
+  const ran = mlConfig && mlResult && !mlResult.error
+  const modelNote = !ran
+    ? 'No model has been run yet, so the report will include an automatic clustering.'
+    : `Using your last run: ${mlConfig.target ? `predict ${mlConfig.target}` : 'clustering'} with ${mlResult.best_model}${mlConfig.features ? ` on ${mlConfig.features.length} chosen columns` : ''}.`
 
   return (
     <div>
-      <SectionLabel>Generate Report</SectionLabel>
-      <Card style={{ padding: '28px 30px', maxWidth: 560 }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 600, marginBottom: 8 }}>
-          Full PDF report
+      <SectionLabel>PDF report</SectionLabel>
+      <Card style={{ padding: '28px 30px', maxWidth: 640 }} tint="var(--sky-soft)">
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 8 }}>
+          Your analysis, on paper
         </div>
-        <div style={{ fontSize: 13.5, color: 'var(--ink-soft)', lineHeight: 1.6, marginBottom: 22 }}>
-          Includes executive summary, dataset overview, data quality findings, charts, statistics,
-          correlation analysis, model performance, and recommendations — built from the current
-          state of your dataset (any cleaning you've applied is included).
+        <div style={{ fontSize: 14.5, color: 'var(--ink-soft)', lineHeight: 1.6, marginBottom: 16 }}>
+          Built from the current state of your dataset, so any cleaning you applied is included.
         </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, color: 'var(--ink-faint)', marginBottom: 6, fontWeight: 600 }}>
-            ML target column (optional)
-          </div>
-          <select
-            value={target}
-            onChange={(e) => setTarget(e.target.value)}
-            disabled={!includeML}
-            style={{
-              width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--hairline-strong)', fontFamily: 'var(--font-mono)',
-              fontSize: 13, background: includeML ? 'var(--paper)' : 'var(--hairline)', color: 'var(--ink)',
-            }}
-          >
-            <option value="">— No target (clustering) —</option>
-            {columns.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginBottom: 20 }}>
+          {SECTIONS.map((s) => <Badge key={s} tone="accent">{s}</Badge>)}
         </div>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 22, cursor: 'pointer', fontSize: 13.5, color: 'var(--ink-soft)' }}>
-          <input type="checkbox" checked={includeML} onChange={(e) => setIncludeML(e.target.checked)} />
-          Include machine learning section
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, cursor: 'pointer', fontSize: 14.5, fontWeight: 600 }}>
+          <input type="checkbox" checked={includeML} onChange={(e) => setIncludeML(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--accent)' }} />
+          Include the machine learning section
         </label>
+        <div style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 22, paddingLeft: 28, lineHeight: 1.5 }}>
+          {includeML ? modelNote : 'The model sections will be left out.'}
+          {includeML && <> Change the target, columns or model in the ML models tab.</>}
+        </div>
 
-        <div style={{ display: 'flex', gap: 10 }}>
-          <Button variant="accent" onClick={() => onGenerate(target || null, includeML)} disabled={generating}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <Button variant="accent" onClick={() => onGenerate(includeML)} disabled={generating}>
             {generating ? <Spinner size={14} /> : 'Generate PDF report'}
           </Button>
           {downloadUrl && !generating && (
             <a href={downloadUrl} download style={{ textDecoration: 'none' }}>
-              <Button variant="primary">Download report ↓</Button>
+              <Button variant="mint">Download report ↓</Button>
             </a>
           )}
         </div>
