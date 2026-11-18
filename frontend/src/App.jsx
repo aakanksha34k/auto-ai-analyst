@@ -3,15 +3,18 @@ import api, { getAccessCode, setSessionExpiredHandler, storeAccessCode } from '.
 import UploadScreen from './components/UploadScreen'
 import Sidebar from './components/Sidebar'
 import OverviewTab from './components/tabs/OverviewTab'
+import DataTab from './components/tabs/DataTab'
 import CleaningTab from './components/tabs/CleaningTab'
 import StatsTab from './components/tabs/StatsTab'
 import ChartsTab from './components/tabs/ChartsTab'
 import CorrelationTab from './components/tabs/CorrelationTab'
-import MLTab from './components/tabs/MLTab'
+import MLTab, { DEFAULT_ML_FORM } from './components/tabs/MLTab'
 import RecommendationsTab from './components/tabs/RecommendationsTab'
 import ReportTab from './components/tabs/ReportTab'
 import ChatTab from './components/tabs/ChatTab'
-import { Spinner } from './components/Primitives'
+import { Spinner, Ticker } from './components/Primitives'
+
+const TICKER_WORDS = ['Profile', 'Clean', 'Explore', 'Chart', 'Model', 'Explain', 'Report']
 
 export default function App() {
   const [dataset, setDataset] = useState(null) // { id, filename, profile, preview }
@@ -22,10 +25,14 @@ export default function App() {
   // per-tab lazy-loaded state
   const [stats, setStats] = useState(null)
   const [correlation, setCorrelation] = useState(null)
+  const [mlForm, setMlForm] = useState(DEFAULT_ML_FORM)   // what the ML tab's controls currently say
   const [mlResult, setMlResult] = useState(null)
+  const [mlConfig, setMlConfig] = useState(null)          // the exact config of the last successful run
   const [mlRunning, setMlRunning] = useState(false)
   const [recommendations, setRecommendations] = useState(null)
   const [recLoading, setRecLoading] = useState(false)
+  const [chartRec, setChartRec] = useState(null)          // recommended chart gallery
+  const [myCharts, setMyCharts] = useState([])            // charts the user built
   const [cleaningLog, setCleaningLog] = useState([])
   const [applying, setApplying] = useState(false)
   const [reportUrl, setReportUrl] = useState(null)
@@ -45,6 +52,21 @@ export default function App() {
     setChatMessages([]); setPendingQuestion(null)
   }, [])
 
+  // The data changed (cleaning / reset): anything computed from it is stale.
+  const invalidateResults = useCallback(() => {
+    setStats(null); setCorrelation(null); setMlResult(null); setMlConfig(null); setRecommendations(null); setReportUrl(null)
+    setChartRec(null)
+    setMyCharts((prev) => prev.map((c) => ({ ...c, payload: null, error: '', loading: false })))
+    invalidateAI()
+  }, [invalidateAI])
+
+  // Everything back to a blank slate (new upload / expired session).
+  const resetAll = useCallback(() => {
+    invalidateResults()
+    setMyCharts([]); setMlForm(DEFAULT_ML_FORM)
+    setCleaningLog([]); setActiveTab('overview')
+  }, [invalidateResults])
+
   // Access code for servers that protect their AI key (APP_ACCESS_CODE)
   const [accessCode, setAccessCode] = useState(getAccessCode)
   const [accessDenied, setAccessDenied] = useState(false)
@@ -55,13 +77,11 @@ export default function App() {
   useEffect(() => {
     setSessionExpiredHandler(() => {
       setDataset(null)
-      setStats(null); setCorrelation(null); setMlResult(null); setRecommendations(null)
-      setCleaningLog([]); setReportUrl(null); setActiveTab('overview')
-      invalidateAI()
+      resetAll()
       setUploadError('Your session expired (the server was idle or restarted). Please upload your file again.')
     })
     return () => setSessionExpiredHandler(null)
-  }, [invalidateAI])
+  }, [resetAll])
 
   const handleAsk = useCallback((question) => {
     setPendingQuestion(question)
@@ -74,19 +94,19 @@ export default function App() {
     setUploadError(null)
     try {
       const data = await api.upload(file)
+      resetAll()
       setDataset({
         id: data.dataset_id,
         filename: data.filename,
         profile: data.profile,
         preview: { columns: Object.keys(data.preview[0] || {}), rows: data.preview, total_rows: data.profile.overview.n_rows },
       })
-      setActiveTab('overview')
     } catch (e) {
       setUploadError(e?.response?.data?.detail || 'Could not process this file. Check the format and try again.')
     } finally {
       setUploading(false)
     }
-  }, [])
+  }, [resetAll])
 
   const refreshProfile = useCallback(async (id) => {
     const profile = await api.getProfile(id)
@@ -101,13 +121,11 @@ export default function App() {
       const res = await api.applyCleaning(dataset.id, actions)
       setCleaningLog((prev) => [...prev, ...res.log])
       await refreshProfile(dataset.id)
-      // invalidate downstream cached results since data changed
-      setStats(null); setCorrelation(null); setMlResult(null); setRecommendations(null); setReportUrl(null)
-      invalidateAI()
+      invalidateResults()
     } finally {
       setApplying(false)
     }
-  }, [dataset, refreshProfile, invalidateAI])
+  }, [dataset, refreshProfile, invalidateResults])
 
   const handleApplyAll = useCallback(async () => {
     if (!dataset?.profile?.cleaning_suggestions?.length) return
@@ -124,12 +142,11 @@ export default function App() {
       await api.resetCleaning(dataset.id)
       setCleaningLog([])
       await refreshProfile(dataset.id)
-      setStats(null); setCorrelation(null); setMlResult(null); setRecommendations(null); setReportUrl(null)
-      invalidateAI()
+      invalidateResults()
     } finally {
       setApplying(false)
     }
-  }, [dataset, refreshProfile, invalidateAI])
+  }, [dataset, refreshProfile, invalidateResults])
 
   // lazy-load stats / correlation when their tabs are opened
   useEffect(() => {
@@ -142,55 +159,71 @@ export default function App() {
     }
   }, [activeTab, dataset, stats, correlation])
 
-  const handleRunML = useCallback(async (target) => {
+  const loadRecommendations = useCallback(async (id, result) => {
+    setRecLoading(true)
+    try {
+      const r = await api.getRecommendations(id, result)
+      setRecommendations(r.recommendations)
+    } catch { setRecommendations([]) } finally { setRecLoading(false) }
+  }, [])
+
+  const handleRunML = useCallback(async (config) => {
     if (!dataset) return
     setMlRunning(true)
     try {
-      const result = await api.runML(dataset.id, target, null)
+      const result = await api.runML(dataset.id, config)
       setMlResult(result)
+      if (result.error) {
+        setMlConfig(null)
+      } else {
+        setMlConfig(config)
+        setRecommendations(null)
+        loadRecommendations(dataset.id, result)   // recommendations now reflect the model the user chose
+      }
     } catch (e) {
       setMlResult({ error: e?.response?.data?.detail || 'Model training failed on this dataset.' })
+      setMlConfig(null)
     } finally {
       setMlRunning(false)
     }
-  }, [dataset])
+  }, [dataset, loadRecommendations])
+
+  // a target column that disappeared (dropped during cleaning) can no longer be selected
+  useEffect(() => {
+    const names = dataset?.profile?.columns?.map((c) => c.name) || []
+    if (names.length && mlForm.target && !names.includes(mlForm.target)) setMlForm((f) => ({ ...f, target: '' }))
+  }, [dataset, mlForm.target])
 
   useEffect(() => {
-    if (!dataset) return
-    if (activeTab === 'recommendations' && !recommendations) {
-      setRecLoading(true)
-      api.getRecommendations(dataset.id, mlResult?.target || null)
-        .then((r) => setRecommendations(r.recommendations))
-        .finally(() => setRecLoading(false))
+    if (dataset && activeTab === 'recommendations' && !recommendations && !recLoading) {
+      loadRecommendations(dataset.id, mlResult && !mlResult.error ? mlResult : null)
     }
-  }, [activeTab, dataset, recommendations, mlResult])
+  }, [activeTab, dataset, recommendations, recLoading, mlResult, loadRecommendations])
 
-  const handleGenerateReport = useCallback(async (target, includeML) => {
+  const handleGenerateReport = useCallback(async (includeML) => {
     if (!dataset) return
     setReportGenerating(true)
     try {
-      await api.createReport(dataset.id, target, includeML)
+      await api.createReport(dataset.id, includeML, mlConfig)
       setReportUrl(api.reportDownloadUrl(dataset.id))
     } finally {
       setReportGenerating(false)
     }
-  }, [dataset])
+  }, [dataset, mlConfig])
 
   const handleNewDataset = useCallback(async () => {
     if (dataset) {
       try { await api.deleteDataset(dataset.id) } catch {}
     }
     setDataset(null)
-    setStats(null); setCorrelation(null); setMlResult(null); setRecommendations(null)
-    setCleaningLog([]); setReportUrl(null); setActiveTab('overview')
-    invalidateAI()
-  }, [dataset, invalidateAI])
+    resetAll()
+  }, [dataset, resetAll])
 
   if (!dataset) {
     return <UploadScreen onUpload={handleUpload} loading={uploading} error={uploadError} />
   }
 
-  const columnNames = dataset.profile?.overview?.column_names || []
+  const profileColumns = dataset.profile?.columns || []
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
@@ -202,8 +235,10 @@ export default function App() {
         colCount={dataset.profile?.overview?.n_columns}
         onNewDataset={handleNewDataset}
       />
-      <main style={{ flex: 1, minWidth: 0, padding: '28px clamp(18px, 3vw, 42px)', maxWidth: 'none', overflowX: 'hidden' }}>
+      <main style={{ flex: 1, minWidth: 0, padding: '22px clamp(18px, 3vw, 42px) 42px', overflowX: 'hidden' }}>
+        <div style={{ marginBottom: 26 }}><Ticker items={TICKER_WORDS} /></div>
         {activeTab === 'overview' && <OverviewTab profile={dataset.profile} preview={dataset.preview} />}
+        {activeTab === 'data' && <DataTab datasetId={dataset.id} columns={profileColumns} />}
         {activeTab === 'cleaning' && (
           <CleaningTab
             profile={dataset.profile}
@@ -217,24 +252,30 @@ export default function App() {
         {activeTab === 'stats' && (
           stats ? <StatsTab stats={stats} /> : <LoadingBlock label="Computing statistics…" />
         )}
-        {activeTab === 'charts' && <ChartsTab datasetId={dataset.id} />}
+        {activeTab === 'charts' && (
+          <ChartsTab datasetId={dataset.id} columns={profileColumns} rec={chartRec} setRec={setChartRec} mine={myCharts} setMine={setMyCharts} />
+        )}
         {activeTab === 'correlation' && (
           correlation ? <CorrelationTab correlation={correlation} /> : <LoadingBlock label="Computing correlations…" />
         )}
         {activeTab === 'ml' && (
-          <MLTab columns={columnNames} onRun={handleRunML} result={mlResult} running={mlRunning} />
+          <MLTab
+            datasetId={dataset.id} columns={profileColumns} form={mlForm} setForm={setMlForm}
+            onRun={handleRunML} result={mlResult} running={mlRunning}
+            recommendations={recommendations} recLoading={recLoading}
+          />
         )}
         {activeTab === 'recommendations' && (
           <RecommendationsTab recommendations={recommendations} loading={recLoading} />
         )}
         {activeTab === 'report' && (
-          <ReportTab columns={columnNames} onGenerate={handleGenerateReport} downloadUrl={reportUrl} generating={reportGenerating} />
+          <ReportTab mlConfig={mlConfig} mlResult={mlResult} onGenerate={handleGenerateReport} downloadUrl={reportUrl} generating={reportGenerating} />
         )}
       </main>
-      <aside style={{ width: 350, flex: '0 0 350px', borderLeft: '1px solid var(--hairline)', background: 'var(--paper-raised)', height: '100vh', position: 'sticky', top: 0, display: 'flex', flexDirection: 'column', padding: 18, boxSizing: 'border-box', minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>AI Data Analyst</div>
-          <span style={{ fontSize: 10, color: llm?.configured ? 'var(--positive)' : 'var(--ink-faint)' }}>{llm?.configured ? '● READY' : '○ SETUP'}</span>
+      <aside style={{ width: 350, flex: '0 0 350px', borderLeft: '2px solid var(--line)', background: 'var(--paper-raised)', height: '100vh', position: 'sticky', top: 0, display: 'flex', flexDirection: 'column', padding: 18, boxSizing: 'border-box', minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, padding: '8px 12px', background: 'var(--pink)', border: '2px solid var(--line)', borderRadius: 12, boxShadow: 'var(--shadow-sm)' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16 }}>AI Data Analyst</div>
+          <span style={{ fontSize: 11.5, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: llm?.configured ? 'var(--mint)' : 'var(--paper-raised)', border: '2px solid var(--line)' }}>{llm?.configured ? '● Ready' : '○ Setup'}</span>
         </div>
         <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
           <ChatTab datasetId={dataset.id} llm={llm} messages={chatMessages} setMessages={setChatMessages}
@@ -249,8 +290,8 @@ export default function App() {
 function LoadingBlock({ label }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 80, gap: 12 }}>
-      <Spinner size={22} />
-      <div style={{ color: 'var(--ink-faint)', fontSize: 13 }}>{label}</div>
+      <Spinner size={24} />
+      <div style={{ color: 'var(--ink-soft)', fontSize: 14, fontWeight: 600 }}>{label}</div>
     </div>
   )
 }
