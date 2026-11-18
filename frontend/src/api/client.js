@@ -28,6 +28,10 @@ const watchExpiry = (err) => {
 }
 client.interceptors.response.use((r) => r, watchExpiry)
 
+// Model training (especially "compare all models") and reports can take a while.
+const slowClient = axios.create({ baseURL: `${API_BASE}/api`, timeout: 180000 })
+slowClient.interceptors.response.use((r) => r, watchExpiry)
+
 // LLM calls run multi-step tool loops, so they get a much longer timeout.
 const llmClient = axios.create({ baseURL: `${API_BASE}/api`, timeout: 180000 })
 llmClient.interceptors.request.use((cfg) => {
@@ -48,11 +52,15 @@ export const api = {
   },
   getProfile: async (id) => (await client.get(`/datasets/${id}/profile`)).data,
   getPreview: async (id, rows = 25) => (await client.get(`/datasets/${id}/preview`, { params: { rows } })).data,
+  getData: async (id, params) => (await client.get(`/datasets/${id}/data`, { params })).data,
+  dataDownloadUrl: (id) => `${API_BASE}/api/datasets/${id}/data/download`,
   applyCleaning: async (id, actions) => (await client.post(`/datasets/${id}/clean`, { actions })).data,
   resetCleaning: async (id) => (await client.post(`/datasets/${id}/reset`)).data,
   getStats: async (id) => (await client.get(`/datasets/${id}/stats`)).data,
   getCorrelation: async (id) => (await client.get(`/datasets/${id}/correlation`)).data,
   getChartSuggestions: async (id) => (await client.get(`/datasets/${id}/chart-suggestions`)).data,
+  getRecommendedCharts: async (id) => (await client.get(`/datasets/${id}/charts/recommended`)).data,
+  chartCustom: async (id, spec) => (await client.post(`/datasets/${id}/charts/custom`, spec)).data,
   chartHistogram: async (id, column) => (await client.post(`/datasets/${id}/charts/histogram`, { column })).data,
   chartBoxplot: async (id, column) => (await client.post(`/datasets/${id}/charts/boxplot`, { column })).data,
   chartBar: async (id, column) => (await client.post(`/datasets/${id}/charts/bar`, { column })).data,
@@ -60,11 +68,13 @@ export const api = {
   chartScatter: async (id, x, y) => (await client.post(`/datasets/${id}/charts/scatter`, { x, y })).data,
   chartTimeseries: async (id, date_column, value_column) =>
     (await client.post(`/datasets/${id}/charts/timeseries`, { date_column, value_column })).data,
-  runML: async (id, target, n_clusters) => (await client.post(`/datasets/${id}/ml/run`, { target, n_clusters })).data,
-  getRecommendations: async (id, target) =>
-    (await client.get(`/datasets/${id}/recommendations`, { params: { target } })).data,
-  createReport: async (id, target, include_ml = true) =>
-    (await client.post(`/datasets/${id}/report`, { target, include_ml })).data,
+  mlModels: async (id, target, task) =>
+    (await client.get(`/datasets/${id}/ml/models`, { params: { target: target || undefined, task: task || undefined } })).data,
+  runML: async (id, config) => (await slowClient.post(`/datasets/${id}/ml/run`, config)).data,
+  getRecommendations: async (id, mlResult) =>
+    (await client.post(`/datasets/${id}/recommendations`, { ml_result: mlResult || null })).data,
+  createReport: async (id, includeMl, ml) =>
+    (await slowClient.post(`/datasets/${id}/report`, { include_ml: includeMl, ml: ml || null })).data,
   reportDownloadUrl: (id) => `${API_BASE}/api/datasets/${id}/report/download`,
   deleteDataset: async (id) => (await client.delete(`/datasets/${id}`)).data,
 
